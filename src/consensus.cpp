@@ -1,6 +1,6 @@
 #include "consensus.h"
 
-std::map<int, int> get_communities(std::string edgelist, std::string algorithm, int seed, double resolution, igraph_t* graph_ptr) {
+std::map<int, int> get_communities(std::string edgelist, std::string algorithm, int seed, double clustering_parameter, igraph_t* graph_ptr) {
     std::map<int, int> partition_map;
     igraph_t graph;
     igraph_eit_t eit;
@@ -44,7 +44,7 @@ std::map<int, int> get_communities(std::string edgelist, std::string algorithm, 
 
     } else if(algorithm == "leiden-cpm") {
         Graph leiden_graph(&graph);
-        CPMVertexPartition partition(&leiden_graph, resolution);
+        CPMVertexPartition partition(&leiden_graph, clustering_parameter);
         Optimiser o;
         o.optimise_partition(&partition);
 
@@ -133,14 +133,14 @@ int Consensus::write_to_log_file(std::string message, int message_type) {
     return 0;
 }
 
-int Consensus::main() {
+int ThresholdConsensus::main() {
     std::vector<std::map<int, int>> results(this->num_partitions);
     this->write_to_log_file("Starting workers" , 1);
     omp_lock_t log_lock;
     omp_init_lock(&log_lock);
     #pragma omp parallel for num_threads(this->num_processors)
     for(int i = 0; i < this->num_partitions; i++) {
-        results[i] = get_communities(this->edgelist, this->algorithm, i, this->resolution, NULL);
+        results[i] = get_communities(this->edgelist, this->algorithm_vector[i], i, this->clustering_parameter_vector[i], NULL);
         omp_set_lock(&log_lock);
         this->write_to_log_file("Worker " + std::to_string(i) + "finished", 1);
         omp_unset_lock(&log_lock);
@@ -200,7 +200,7 @@ int Consensus::main() {
     this->write_to_log_file("Finished removing edges from the final graph" , 1);
 
     this->write_to_log_file("Started the final clustering run" , 1);
-    std::map<int, int> final_partition = get_communities(this->edgelist, this->algorithm, 0, this->resolution, &graph);
+    std::map<int, int> final_partition = get_communities("", this->final_algorithm, 0, this->final_resolution, &graph);
     this->write_to_log_file("Finished the final clustering run" , 1);
     igraph_destroy(&graph);
 
@@ -211,6 +211,81 @@ int Consensus::main() {
     }
     clustering_output.close();
     this->write_to_log_file("Finished writing to the output clustering file" , 1);
+
+    return 0;
+}
+
+bool SimpleConsensus::check_convergence(igraph_t* graph_ptr) {
+    this->write_to_log_file("Starting convergence check", 1);
+    int count = 0;
+    int num_edges = 0;
+    igraph_eit_t eit;
+    igraph_eit_create(graph_ptr, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+    for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+        igraph_real_t current_edge_weight = IGRAPH_EIT_GET(eit);
+        if (current_edge_weight != 0 && current_edge_weight != this->num_partitions) {
+            count ++;
+        }
+        num_edges ++ ;
+    }
+    this->write_to_log_file("Finished convergence check", 1);
+    return count <= this->delta * num_edges;
+}
+
+int SimpleConsensus::main() {
+    for(unsigned int i = 0; i < this->num_partitions; i ++) {
+        std::cout << this->algorithm_vector[i] << std::endl;
+        std::cout << this->weight_vector[i] << std::endl;
+    }
+    this->write_to_log_file("Loading the initial graph" , 1);
+    FILE* edgelist_file = fopen(this->edgelist.c_str(), "r");
+    igraph_t graph;
+    igraph_set_attribute_table(&igraph_cattribute_table);
+    igraph_read_graph_edgelist(&graph, edgelist_file, 0, false);
+    fclose(edgelist_file);
+    this->write_to_log_file("Finished loading the initial graph" , 1);
+    igraph_eit_t eit;
+    igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+
+    this->write_to_log_file("Started setting the default edge weights for the initial graph" , 1);
+    for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+        SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), 1);
+    }
+    this->write_to_log_file("Finished setting the default edge weights for the initial graph" , 1);
+
+    int iter_count = 0;
+    int max_weight = this->weight_vector[0];
+    for (unsigned int i = 0; i < this->weight_vector.size(); i ++) {
+        if(max_weight < this->weight_vector[i]) {
+            max_weight = this->weight_vector[i];
+        }
+    }
+
+    while (this->check_convergence(&graph) && iter_count < max_iter) {
+        igraph_t next_graph;
+        igraph_copy(&next_graph, &graph);
+        igraph_eit_t next_graph_eit;
+        igraph_eit_create(&next_graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &next_graph_eit);
+        for(; !IGRAPH_EIT_END(next_graph_eit); IGRAPH_EIT_NEXT(next_graph_eit)) {
+            SETEAN(&next_graph, "weight", IGRAPH_EIT_GET(next_graph_eit), 1);
+        }
+
+        std::vector<std::map<int, int>> results(this->num_partitions);
+        this->write_to_log_file("Starting workers" , 1);
+        omp_lock_t log_lock;
+        omp_init_lock(&log_lock);
+        #pragma omp parallel for num_threads(this->num_processors)
+        for(int i = 0; i < this->num_partitions; i++) {
+            results[i] = get_communities("", this->algorithm_vector[i], i, this->clustering_parameter_vector[i], &graph);
+            omp_set_lock(&log_lock);
+            this->write_to_log_file("Worker " + std::to_string(i) + "finished", 1);
+            omp_unset_lock(&log_lock);
+        }
+        this->write_to_log_file("Got results back from workers" , 1);
+
+
+    }
+
 
     return 0;
 }
