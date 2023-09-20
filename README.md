@@ -23,7 +23,7 @@ Once the one time setup is complete, all one has to do is run the script provide
 
 ### Threshold consensus
 This implementation of the Threshold Consensus runs a clustering algorithm $n_p$ times with different random seeds in a single iteration and only keeps the edges that appear in at least $\tau$ proportion of the partitions. When $\tau=1$, this is equivalent to *strict* consensus.
-'''
+```
 Usage: consensus-clustering [--help] [--version] --edgelist VAR [--threshold VAR] [--algorithm VAR] [--resolution VAR] [--partitions VAR] [--num-processors VAR] --output-file VAR --log-file VAR [--log-level VAR]
 
 Optional arguments:
@@ -38,7 +38,7 @@ Optional arguments:
   --output-file     Output clustering file [required]
   --log-file        Output log file [required]
   --log-level       Log level where 0 = silent, 1 = info, 2 = verbose [default: 1]
-'''
+```
 
 ---
 # BELOW IS NOT MODIFIED YET ONLY THRESHOLD CONSENSUS HAS BEEN IMPLEMENTED
