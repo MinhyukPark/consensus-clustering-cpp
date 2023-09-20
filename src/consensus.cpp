@@ -174,8 +174,8 @@ int ThresholdConsensus::main() {
             int from_node = IGRAPH_FROM(&graph, current_edge);
             int to_node = IGRAPH_TO(&graph, current_edge);
             if(current_partition[from_node] != current_partition[to_node]) {
-                igraph_real_t current_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
-                SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), current_weight - ((double)1/this->num_partitions));
+                igraph_real_t current_edge_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
+                SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), current_edge_weight - ((double)1/this->num_partitions));
             }
         }
     }
@@ -186,8 +186,8 @@ int ThresholdConsensus::main() {
     igraph_vector_int_init(&edges_to_remove, 0);
     IGRAPH_EIT_RESET(eit);
     for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
-        igraph_real_t current_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
-        if(current_weight < this->threshold) {
+        igraph_real_t current_edge_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
+        if(current_edge_weight < this->threshold) {
             igraph_vector_int_push_back(&edges_to_remove, IGRAPH_EIT_GET(eit));
         }
     }
@@ -215,8 +215,12 @@ int ThresholdConsensus::main() {
     return 0;
 }
 
-bool SimpleConsensus::check_convergence(igraph_t* graph_ptr) {
-    this->write_to_log_file("Starting convergence check", 1);
+bool SimpleConsensus::check_convergence(igraph_t* graph_ptr, int iter_count) {
+    this->write_to_log_file("Starting convergence check", 0);
+    if(iter_count == 0) {
+        this->write_to_log_file("It's the first iteration. Continuing without checking convergence.", 1);
+        return false;
+    }
     int count = 0;
     int num_edges = 0;
     igraph_eit_t eit;
@@ -233,10 +237,6 @@ bool SimpleConsensus::check_convergence(igraph_t* graph_ptr) {
 }
 
 int SimpleConsensus::main() {
-    for(unsigned int i = 0; i < this->num_partitions; i ++) {
-        std::cout << this->algorithm_vector[i] << std::endl;
-        std::cout << this->weight_vector[i] << std::endl;
-    }
     this->write_to_log_file("Loading the initial graph" , 1);
     FILE* edgelist_file = fopen(this->edgelist.c_str(), "r");
     igraph_t graph;
@@ -245,12 +245,13 @@ int SimpleConsensus::main() {
     fclose(edgelist_file);
     this->write_to_log_file("Finished loading the initial graph" , 1);
     igraph_eit_t eit;
-    igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
 
+    igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
     this->write_to_log_file("Started setting the default edge weights for the initial graph" , 1);
     for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
         SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), 1);
     }
+    igraph_eit_destroy(&eit);
     this->write_to_log_file("Finished setting the default edge weights for the initial graph" , 1);
 
     int iter_count = 0;
@@ -261,14 +262,21 @@ int SimpleConsensus::main() {
         }
     }
 
-    while (this->check_convergence(&graph) && iter_count < max_iter) {
-        igraph_t next_graph;
+    igraph_t next_graph;
+    igraph_eit_t next_graph_eit;
+    while (!this->check_convergence(&next_graph, iter_count) && iter_count < max_iter) {
+        iter_count ++;
+        this->write_to_log_file("Staring iteration: " + std::to_string(iter_count), 1);
+        this->write_to_log_file("Starting to copy the intermediate graphs", 1);
         igraph_copy(&next_graph, &graph);
-        igraph_eit_t next_graph_eit;
+        this->write_to_log_file("Finshed copying the intermediate graphs", 1);
+        this->write_to_log_file("Starting to set the edge weight for the intermediate graph", 1);
         igraph_eit_create(&next_graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &next_graph_eit);
         for(; !IGRAPH_EIT_END(next_graph_eit); IGRAPH_EIT_NEXT(next_graph_eit)) {
             SETEAN(&next_graph, "weight", IGRAPH_EIT_GET(next_graph_eit), 1);
         }
+        igraph_eit_destroy(&next_graph_eit);
+        this->write_to_log_file("Finsihed setting the edge weight for the intermediate graph", 1);
 
         std::vector<std::map<int, int>> results(this->num_partitions);
         this->write_to_log_file("Starting workers" , 1);
@@ -283,8 +291,76 @@ int SimpleConsensus::main() {
         }
         this->write_to_log_file("Got results back from workers" , 1);
 
+        for(int i = 0; i < this->num_partitions; i++) {
+            this->write_to_log_file("Starting to incorate results from worker: " + std::to_string(i) , 1);
+            std::map<int, int> current_partition = results[i];
+            igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+                igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
+                int from_node = IGRAPH_FROM(&graph, current_edge);
+                int to_node = IGRAPH_TO(&graph, current_edge);
+                igraph_es_t next_graph_es;
+                /* std::cerr << "looking for edge id:" << std::to_string(current_edge) << std::endl; */
+                /* std::cerr << "looking for edge " << std::to_string(from_node) << "-" << std::to_string(to_node) << std::endl; */
+                igraph_es_pairs_small(&next_graph_es, false, from_node, to_node, -1);
+                igraph_eit_t next_graph_single_edge_eit;
+                igraph_eit_create(&next_graph, next_graph_es, &next_graph_single_edge_eit);
 
+                igraph_real_t current_edge_weight = EAN(&graph, "weight", current_edge);
+                if(current_edge_weight != 0 && current_edge_weight != max_weight) {
+                    if(current_partition[from_node] != current_partition[to_node]) {
+                        double new_edge_weight = current_edge_weight + 1 * (this->weight_vector[i]);
+                        for(; !IGRAPH_EIT_END(next_graph_single_edge_eit); IGRAPH_EIT_NEXT(next_graph_single_edge_eit)) {
+                            SETEAN(&next_graph, "weight", IGRAPH_EIT_GET(next_graph_single_edge_eit), new_edge_weight);
+                        }
+                    }
+                } else {
+                    for(; !IGRAPH_EIT_END(next_graph_single_edge_eit); IGRAPH_EIT_NEXT(next_graph_single_edge_eit)) {
+                        SETEAN(&next_graph, "weight", IGRAPH_EIT_GET(next_graph_single_edge_eit), current_edge_weight);
+                    }
+                }
+
+                igraph_eit_destroy(&next_graph_single_edge_eit);
+                igraph_es_destroy(&next_graph_es);
+            }
+            igraph_eit_destroy(&eit);
+            this->write_to_log_file("Finished incorpating results from worker: " + std::to_string(i) , 1);
+        }
+        this->write_to_log_file("Started removing edges from the intermediate graph" , 1);
+        igraph_vector_int_t edges_to_remove;
+        igraph_vector_int_init(&edges_to_remove, 0);
+        igraph_eit_create(&next_graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &next_graph_eit);
+        for(; !IGRAPH_EIT_END(next_graph_eit); IGRAPH_EIT_NEXT(next_graph_eit)) {
+            igraph_real_t current_edge_weight = EAN(&next_graph, "weight", IGRAPH_EIT_GET(next_graph_eit));
+            if(current_edge_weight < this->threshold * this->num_partitions) {
+                igraph_vector_int_push_back(&edges_to_remove, IGRAPH_EIT_GET(next_graph_eit));
+            }
+        }
+        igraph_eit_destroy(&next_graph_eit);
+        igraph_es_t es;
+        igraph_es_vector_copy(&es, &edges_to_remove);
+        igraph_delete_edges(&next_graph, es);
+        igraph_es_destroy(&es);
+        igraph_vector_int_destroy(&edges_to_remove);
+        this->write_to_log_file("Finished removing edges from the intermediate graph" , 1);
+        igraph_destroy(&graph);
+        igraph_copy(&graph, &next_graph);
     }
+
+    this->write_to_log_file("Simple consensus took " + std::to_string(iter_count) + " iterations", 1);
+
+    this->write_to_log_file("Started the final clustering run" , 1);
+    std::map<int, int> final_partition = get_communities("", this->final_algorithm, 0, this->final_resolution, &graph);
+    this->write_to_log_file("Finished the final clustering run" , 1);
+    igraph_destroy(&graph);
+
+    this->write_to_log_file("Started writing to the output clustering file" , 1);
+    std::ofstream clustering_output(this->output_file);
+    for(auto const& [node_id, cluster_id]: final_partition) {
+        clustering_output << node_id << " " << cluster_id << '\n';
+    }
+    clustering_output.close();
+    this->write_to_log_file("Finished writing to the output clustering file" , 1);
 
 
     return 0;

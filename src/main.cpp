@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         .help("Convergence parameter")
         .scan<'f', double>();
     simple_consensus.add_argument("--max-iter")
-        .default_value(int(1))
+        .default_value(int(2))
         .help("Maximum number of iterations in simple consensus")
         .scan<'d', int>();
     simple_consensus.add_argument("--partitions")
@@ -146,15 +146,3 @@ int main(int argc, char* argv[]) {
         delete tc;
     }
 }
-
-
-    /* Library* library = new Library(); */
-    /* std::cout<<library->square(5)<<std::endl; */
-    /* Obj* obj = new Obj(); */
-    /* std::cout<<obj->test_obj()<<std::endl; */
-
-    /* std::string edgelist = main_program.get<std::string>("--edgelist"); */
-    /* std::cout << "edge list was " << edgelist << std::endl; */
-    /* std::string algorithm = main_program.get<std::string>("--algorithm"); */
-    /* std::cout << "algorithm was " << edgelist << std::endl; */
-
