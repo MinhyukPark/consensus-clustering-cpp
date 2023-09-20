@@ -166,10 +166,18 @@ int Consensus::main() {
     this->write_to_log_file("Finished setting the default edge weights for the final graph" , 1);
 
     this->write_to_log_file("Started subtracting from edge weights for the final graph" , 1);
-    IGRAPH_EIT_RESET(eit);
-    for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
-        igraph_real_t current_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
-        SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), current_weight - ((double)1/this->num_partitions));
+    for(int i = 0; i < this->num_partitions; i++) {
+        std::map<int,int> current_partition = results[i];
+        IGRAPH_EIT_RESET(eit);
+        for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+            igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
+            int from_node = IGRAPH_FROM(&graph, current_edge);
+            int to_node = IGRAPH_TO(&graph, current_edge);
+            if(current_partition[from_node] != current_partition[to_node]) {
+                igraph_real_t current_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
+                SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), current_weight - ((double)1/this->num_partitions));
+            }
+        }
     }
     this->write_to_log_file("Finsished subtracting from edge weights for the final graph" , 1);
 
