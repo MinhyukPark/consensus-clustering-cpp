@@ -9,6 +9,7 @@ OUTPUT="./output/"
 ERRORS="./errors/"
 
 INPUT_EDGELIST="input edgelist file (tsv)"
+INPUT_PARTITION_FILE="input partition file (tsv)"
 
 ALGORITHM="leiden-cpm"
 RESOLUTION=0.2
@@ -17,5 +18,4 @@ NUM_PARTITIONS=5
 NUM_PROCESSORS=16
 
 
-/usr/bin/time -v ${GIT_ROOT}/consensus_clustering --edgelist ${INPUT_EDGELIST} --algorithm ${ALGORITHM} --resolution ${RESOLUTION} --partitions ${NUM_PARTITIONS} --num-processors ${NUM_PROCESSORS} --threshold ${THRESHOLD} --output-file ${OUTPUT}/output.clustering --log-file ${OUTPUT}/output.log --log-level 2 2>${ERRORS}/consensus.err 1>${OUTPUT}/consensus.out
-
+/usr/bin/time -v ${GIT_ROOT}/consensus_clustering threshold --edgelist ${INPUT_EDGELIST} --partition-file ${PARTITION_FILE} --final-algorithm ${ALGORITHM} --final-resolution ${RESOLUTION} --partitions ${NUM_PARTITIONS} --num-processors ${NUM_PROCESSORS} --threshold ${THRESHOLD} --output-file ${OUTPUT}/output.clustering --log-file ${OUTPUT}/output.log --log-level 2 2>${ERRORS}/consensus.err 1>${OUTPUT}/consensus.out
