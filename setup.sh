@@ -1,4 +1,6 @@
 #!/bin/sh
+# # to avoid linking shared
+# export CXXFLAGS="$CXXFLAGS -fPIC"
 
 external_libs_full_path=$(readlink -f ./external_libs)
 rm -rf ${external_libs_full_path}
@@ -10,8 +12,6 @@ git clone https://github.com/igraph/igraph.git
 cd igraph
 mkdir build
 cd build
-# to avoid linking shared
-export CXXFLAGS="$CXXFLAGS -fPIC"
 cmake .. -DCMAKE_INSTALL_PREFIX=${external_libs_full_path}
 cmake --build .
 cmake --install .
@@ -23,8 +23,6 @@ git clone https://github.com/vtraag/libleidenalg.git
 cd libleidenalg
 mkdir build
 cd build
-# to avoid linking shared
-export CXXFLAGS="$CXXFLAGS -fPIC"
-cmake .. -DCMAKE_INSTALL_PREFIX=${external_libs_full_path} -DCMAKE_PREFIX_PATH=${external_libs_full_path}
+cmake .. -DCMAKE_INSTALL_PREFIX=${external_libs_full_path} -DCMAKE_PREFIX_PATH=${external_libs_full_path} -DBUILD_SHARED_LIBS=FALSE
 cmake --build .
 cmake --build . --target install
