@@ -216,7 +216,7 @@ int ThresholdConsensus::main() {
 }
 
 bool SimpleConsensus::check_convergence(igraph_t* graph_ptr, int iter_count) {
-    this->write_to_log_file("Starting convergence check", 0);
+    this->write_to_log_file("Starting convergence check", 1);
     if(iter_count == 0) {
         this->write_to_log_file("It's the first iteration. Continuing without checking convergence.", 1);
         return false;
