@@ -1,0 +1,53 @@
+cmake_minimum_required(VERSION 3.23)
+#[[ In-source build check ]]
+if("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
+    message(FATAL_ERROR "In-source builds are not allowed.")
+    message(WARNING "Remove CMakeFiles/ and CMakeCache.txt in the\
+            source root before building again.")
+else()
+    #[[ Set project version ]]
+    project(consensus_clustering)
+    list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib64/cmake/igraph)
+    list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib64/cmake/libleidenalg)
+    find_package(igraph 0.10 CONFIG REQUIRED)
+    find_package(libleidenalg 0.11 CONFIG REQUIRED)
+
+    set(CONSENSUS_CLUSTERING_MAJOR_VERSION 0)
+    set(CONSENSUS_CLUSTERING_MINOR_VERSION 1)
+    set(CONSENSUS_CLUSTERING_PATCH_VERSION 0)
+    set(CONSENSUS_CLUSTERING_VERSION
+        ${CONSENSUS_CLUSTERING_MAJOR_VERSION}.
+        ${CONSENSUS_CLUSTERING_MINOR_VERSION}.
+        ${CONSENSUS_CLUSTERING_PATCH_VERSION})
+
+
+    #[[ CONSTANTS ]]
+    # Compiler options
+    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # for clangd lsp
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+    # File paths
+    set(SOURCE_MAIN ${CMAKE_SOURCE_DIR}/src/main.cpp)
+    set(SOURCE_INTERNAL_LIBS
+        ${CMAKE_SOURCE_DIR}/src/obj.cpp)
+    #[[ CONSTANTS END ]]
+
+    #[[ Define the output binary ]]
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    add_executable(consensus_clustering ${SOURCE_MAIN})
+
+    #[[ Link internal libraries ]]
+    add_library(internal_libs ${SOURCE_INTERNAL_LIBS})
+    target_include_directories(internal_libs
+        PUBLIC ${CMAKE_SOURCE_DIR}/includes
+        PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(consensus_clustering PUBLIC internal_libs)
+
+    #[[ Link libraries ]]
+    add_subdirectory(libs)
+    target_link_libraries(consensus_clustering PUBLIC external_libs)
+
+    #[[ Link external libraries ]]
+    target_link_libraries(consensus_clustering PUBLIC igraph::igraph)
+    target_link_libraries(consensus_clustering PUBLIC libleidenalg::libleidenalg)
+endif("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
