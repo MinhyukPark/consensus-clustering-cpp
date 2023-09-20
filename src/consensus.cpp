@@ -332,7 +332,7 @@ int SimpleConsensus::main() {
         igraph_eit_create(&next_graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &next_graph_eit);
         for(; !IGRAPH_EIT_END(next_graph_eit); IGRAPH_EIT_NEXT(next_graph_eit)) {
             igraph_real_t current_edge_weight = EAN(&next_graph, "weight", IGRAPH_EIT_GET(next_graph_eit));
-            if(current_edge_weight < this->threshold * this->num_partitions) {
+            if(current_edge_weight < this->threshold * max_weight) {
                 igraph_vector_int_push_back(&edges_to_remove, IGRAPH_EIT_GET(next_graph_eit));
             }
         }
