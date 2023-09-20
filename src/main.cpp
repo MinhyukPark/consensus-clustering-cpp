@@ -34,6 +34,16 @@ int main(int argc, char* argv[]) {
         .default_value(int(1))
         .help("Number of processors")
         .scan<'d', int>();
+    main_program.add_argument("--output-file")
+        .required()
+        .help("Output clustering file");
+    main_program.add_argument("--log-file")
+        .required()
+        .help("Output log file");
+    main_program.add_argument("--log-level")
+        .default_value(int(1))
+        .help("Log level where 0 = silent, 1 = info, 2 = verbose")
+        .scan<'d', int>();
 
     try {
         main_program.parse_args(argc, argv);
@@ -49,7 +59,10 @@ int main(int argc, char* argv[]) {
     double resolution = main_program.get<double>("--resolution");
     int num_partitions = main_program.get<int>("--partitions");
     int num_processors = main_program.get<int>("--num-processors");
-    Consensus* consensus = new Consensus(edgelist, algorithm, threshold, resolution, num_partitions, num_processors);
+    std::string output_file = main_program.get<std::string>("--output-file");
+    std::string log_file = main_program.get<std::string>("--log-file");
+    int log_level = main_program.get<int>("--log-level");
+    Consensus* consensus = new Consensus(edgelist, algorithm, threshold, resolution, num_partitions, num_processors, output_file, log_file, log_level);
     consensus->main();
     delete consensus;
 
