@@ -11,6 +11,7 @@ else()
     list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib64/cmake/libleidenalg)
     find_package(igraph 0.10 CONFIG REQUIRED)
     find_package(libleidenalg 0.11 CONFIG REQUIRED)
+    find_package(OpenMP REQUIRED)
 
     set(CONSENSUS_CLUSTERING_MAJOR_VERSION 0)
     set(CONSENSUS_CLUSTERING_MINOR_VERSION 1)
@@ -23,13 +24,13 @@ else()
 
     #[[ CONSTANTS ]]
     # Compiler options
-    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # for clangd lsp
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
     # File paths
     set(SOURCE_MAIN ${CMAKE_SOURCE_DIR}/src/main.cpp)
     set(SOURCE_INTERNAL_LIBS
-        ${CMAKE_SOURCE_DIR}/src/obj.cpp)
+        ${CMAKE_SOURCE_DIR}/src/consensus.cpp)
     #[[ CONSTANTS END ]]
 
     #[[ Define the output binary ]]
@@ -41,6 +42,9 @@ else()
     target_include_directories(internal_libs
         PUBLIC ${CMAKE_SOURCE_DIR}/includes
         PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(internal_libs PUBLIC igraph::igraph)
+    target_link_libraries(internal_libs PUBLIC libleidenalg::libleidenalg)
+    target_link_libraries(internal_libs PUBLIC OpenMP::OpenMP_CXX)
     target_link_libraries(consensus_clustering PUBLIC internal_libs)
 
     #[[ Link libraries ]]
@@ -48,6 +52,4 @@ else()
     target_link_libraries(consensus_clustering PUBLIC external_libs)
 
     #[[ Link external libraries ]]
-    target_link_libraries(consensus_clustering PUBLIC igraph::igraph)
-    target_link_libraries(consensus_clustering PUBLIC libleidenalg::libleidenalg)
 endif("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
