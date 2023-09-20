@@ -215,7 +215,7 @@ int ThresholdConsensus::main() {
     return 0;
 }
 
-bool SimpleConsensus::check_convergence(igraph_t* graph_ptr, int iter_count) {
+bool SimpleConsensus::check_convergence(igraph_t* graph_ptr, double max_weight, int iter_count) {
     this->write_to_log_file("Starting convergence check", 1);
     if(iter_count == 0) {
         this->write_to_log_file("It's the first iteration. Continuing without checking convergence.", 1);
@@ -227,12 +227,13 @@ bool SimpleConsensus::check_convergence(igraph_t* graph_ptr, int iter_count) {
     igraph_eit_create(graph_ptr, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
     for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
         igraph_real_t current_edge_weight = IGRAPH_EIT_GET(eit);
-        if (current_edge_weight != 0 && current_edge_weight != this->num_partitions) {
+        if (current_edge_weight != 0 && current_edge_weight != max_weight) {
             count ++;
         }
         num_edges ++ ;
     }
     this->write_to_log_file("Finished convergence check", 1);
+    igraph_eit_destroy(&eit);
     return count <= this->delta * num_edges;
 }
 
@@ -255,16 +256,18 @@ int SimpleConsensus::main() {
     this->write_to_log_file("Finished setting the default edge weights for the initial graph" , 1);
 
     int iter_count = 0;
-    int max_weight = this->weight_vector[0];
+    double max_weight = 0;
     for (unsigned int i = 0; i < this->weight_vector.size(); i ++) {
-        if(max_weight < this->weight_vector[i]) {
-            max_weight = this->weight_vector[i];
-        }
+        max_weight += this->weight_vector[i];
     }
 
     igraph_t next_graph;
     igraph_eit_t next_graph_eit;
-    while (!this->check_convergence(&next_graph, iter_count) && iter_count < max_iter) {
+    while (!this->check_convergence(&next_graph, max_weight, iter_count) && iter_count < max_iter) {
+        if(iter_count != 0) {
+            igraph_destroy(&graph);
+            igraph_copy(&graph, &next_graph);
+        }
         iter_count ++;
         this->write_to_log_file("Staring iteration: " + std::to_string(iter_count), 1);
         this->write_to_log_file("Starting to copy the intermediate graphs", 1);
@@ -343,8 +346,6 @@ int SimpleConsensus::main() {
         igraph_es_destroy(&es);
         igraph_vector_int_destroy(&edges_to_remove);
         this->write_to_log_file("Finished removing edges from the intermediate graph" , 1);
-        igraph_destroy(&graph);
-        igraph_copy(&graph, &next_graph);
     }
 
     this->write_to_log_file("Simple consensus took " + std::to_string(iter_count) + " iterations", 1);
