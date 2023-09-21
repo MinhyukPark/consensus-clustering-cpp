@@ -42,7 +42,10 @@ class Consensus {
             }
         };
         virtual int main() = 0;
+        void remove_edges_based_on_threshold(igraph_t* graph, double current_threshold);
         int write_to_log_file(std::string message, int message_type);
+        void write_partition_map(std::map<int,int>& final_partition);
+        void start_workers(std::vector<std::map<int,int>>& results, igraph_t* graph);
         virtual ~Consensus() {
             if(this->log_level > 0) {
                 this->log_file_handle.close();
