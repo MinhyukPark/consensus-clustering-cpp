@@ -3,7 +3,10 @@
 # export CXXFLAGS="$CXXFLAGS -fPIC"
 
 external_libs_full_path=$(readlink -f ./external_libs)
-rm -rf ${external_libs_full_path}
+rm -rf ${external_libs_full_path}/igraph
+rm -rf ${external_libs_full_path}/libleidenalg
+rm -rf ${external_libs_full_path}/lib
+rm -rf ${external_libs_full_path}/lib64
 mkdir ${external_libs_full_path}
 cd ${external_libs_full_path}
 # install igraph to external_libs
@@ -12,7 +15,7 @@ git clone https://github.com/igraph/igraph.git
 cd igraph
 mkdir build
 cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=${external_libs_full_path}
+cmake .. -DCMAKE_INSTALL_PREFIX=${external_libs_full_path} -DIGRAPH_ENABLE_TLS=ON -DIGRAPH_ENABLE_LTO=ON
 cmake --build .
 cmake --install .
 

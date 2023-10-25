@@ -18,6 +18,7 @@ int ThresholdConsensus::main() {
     for(int i = 0; i < this->num_processors; i ++) {
         thread_vector[i].join();
     }
+
     while(!Consensus::done_being_clustered_clusterings.empty()) {
         results.push_back(Consensus::done_being_clustered_clusterings.front());
         Consensus::done_being_clustered_clusterings.pop();

@@ -44,9 +44,11 @@ int SimpleConsensus::main() {
             igraph_destroy(&graph);
             igraph_copy(&graph, &next_graph);
         }
-        iter_count ++;
         this->WriteToLogFile("Staring iteration: " + std::to_string(iter_count), 1);
         this->WriteToLogFile("Starting to copy the intermediate graphs", 1);
+        if(iter_count != 0) {
+            igraph_destroy(&next_graph);
+        }
         igraph_copy(&next_graph, &graph);
         this->WriteToLogFile("Finshed copying the intermediate graphs", 1);
         this->WriteToLogFile("Starting to set the edge weight for the intermediate graph", 1);
@@ -100,6 +102,7 @@ int SimpleConsensus::main() {
         this->WriteToLogFile("Started removing edges from the intermediate graph" , 1);
         Consensus::RemoveEdgesBasedOnThreshold(&next_graph, this->threshold * max_weight);
         this->WriteToLogFile("Finished removing edges from the intermediate graph" , 1);
+        iter_count ++;
     }
 
     this->WriteToLogFile("Simple consensus took " + std::to_string(iter_count) + " iterations", 1);
@@ -108,6 +111,9 @@ int SimpleConsensus::main() {
     std::map<int, int> final_partition = GetCommunities("", this->final_algorithm, 0, this->final_resolution, &graph);
     this->WriteToLogFile("Finished the final clustering run" , 1);
     igraph_destroy(&graph);
+    if(iter_count != 0) {
+        igraph_destroy(&next_graph);
+    }
 
     this->WriteToLogFile("Started writing to the output clustering file" , 1);
     this->WritePartitionMap(final_partition);
