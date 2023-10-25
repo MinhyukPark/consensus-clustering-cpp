@@ -97,9 +97,10 @@ class Consensus {
             igraph_vector_int_destroy(&membership);
         }
 
-        static inline void RunLeidenAndUpdatePartition(std::map<int, int>& partition_map, MutableVertexPartition* partition, igraph_t* graph) {
+        static inline void RunLeidenAndUpdatePartition(std::map<int, int>& partition_map, MutableVertexPartition* partition, int seed, igraph_t* graph) {
             Optimiser o;
             o.optimise_partition(partition);
+            o.set_rng_seed(seed);
             igraph_eit_t eit;
             igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
             std::set<int> visited;
@@ -165,16 +166,16 @@ class Consensus {
             } else if(algorithm == "leiden-cpm") {
                 Graph leiden_graph(&graph);
                 CPMVertexPartition partition(&leiden_graph, clustering_parameter);
-                RunLeidenAndUpdatePartition(partition_map, &partition, &graph);
+                RunLeidenAndUpdatePartition(partition_map, &partition, seed, &graph);
             } else if(algorithm == "leiden-mod") {
                 Graph leiden_graph(&graph);
                 ModularityVertexPartition partition(&leiden_graph);
-                RunLeidenAndUpdatePartition(partition_map, &partition, &graph);
+                RunLeidenAndUpdatePartition(partition_map, &partition, seed, &graph);
             } else {
                 throw std::invalid_argument("GetCommunities(): Unsupported algorithm");
             }
 
-            if(graph_ptr == NULL) {
+            if(graph_ptr == nullptr) {
                 igraph_destroy(&graph);
             }
             return partition_map;

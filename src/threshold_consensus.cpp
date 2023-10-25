@@ -35,14 +35,14 @@ int ThresholdConsensus::main() {
     fclose(edgelist_file);
     this->WriteToLogFile("Finished loading the final graph" , 1);
 
-    igraph_eit_t eit;
-    igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
 
     this->WriteToLogFile("Started setting the default edge weights for the final graph" , 1);
     Consensus::SetIgraphAllEdgesWeight(&graph, 1.0);
     this->WriteToLogFile("Finished setting the default edge weights for the final graph" , 1);
 
     this->WriteToLogFile("Started subtracting from edge weights for the final graph" , 1);
+    igraph_eit_t eit;
+    igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
     for(int i = 0; i < this->num_partitions; i++) {
         std::map<int,int> current_partition = results[i];
         IGRAPH_EIT_RESET(eit);
@@ -50,12 +50,13 @@ int ThresholdConsensus::main() {
             igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
             int from_node = IGRAPH_FROM(&graph, current_edge);
             int to_node = IGRAPH_TO(&graph, current_edge);
-            if(current_partition[from_node] != current_partition[to_node]) {
+            if(!current_partition.contains(from_node) || !current_partition.contains(to_node) || current_partition[from_node] != current_partition[to_node]) {
                 igraph_real_t current_edge_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
                 SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), current_edge_weight - ((double)1/this->num_partitions));
             }
         }
     }
+    igraph_eit_destroy(&eit);
     this->WriteToLogFile("Finsished subtracting from edge weights for the final graph" , 1);
 
     this->WriteToLogFile("Started removing edges from the final graph" , 1);
