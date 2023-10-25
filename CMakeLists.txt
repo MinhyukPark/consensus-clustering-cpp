@@ -7,6 +7,8 @@ if("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
 else()
     #[[ Set project version ]]
     project(consensus_clustering)
+    list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib/cmake/igraph)
+    list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib/cmake/libleidenalg)
     list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib64/cmake/igraph)
     list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/external_libs/lib64/cmake/libleidenalg)
     find_package(igraph 0.10 CONFIG REQUIRED)
@@ -27,11 +29,14 @@ else()
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # for clangd lsp
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -march=native")
     set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -ggdb")
     set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -g -O0 -ggdb")
     # File paths
     set(SOURCE_MAIN ${CMAKE_SOURCE_DIR}/src/main.cpp)
     set(SOURCE_INTERNAL_LIBS
+        ${CMAKE_SOURCE_DIR}/src/simple_consensus.cpp
+        ${CMAKE_SOURCE_DIR}/src/threshold_consensus.cpp
         ${CMAKE_SOURCE_DIR}/src/consensus.cpp)
     #[[ CONSTANTS END ]]
 

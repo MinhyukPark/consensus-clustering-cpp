@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <chrono>
+#include <condition_variable>
 #include <thread>
 #include <omp.h>
 
@@ -20,7 +21,7 @@
 
 class Consensus {
     public:
-        Consensus(std::string edgelist, std::string partition_file, std::string final_algorithm, double threshold, double final_resolution, int num_partitions, int num_processors, std::string output_file, std::string log_file, int log_level) : edgelist(edgelist), partition_file(partition_file), final_algorithm(final_algorithm), threshold(threshold), final_resolution(final_resolution), num_partitions(num_partitions), num_processors(num_processors), output_file(output_file), log_file(log_file), log_level(log_level) {
+        Consensus(std::string edgelist, std::string partition_file, std::string final_algorithm, double threshold, double final_resolution, int num_partitions, int num_processors, std::string output_file, std::string log_file, int log_level) : edgelist(edgelist), partition_file(partition_file), final_algorithm(final_algorithm), threshold(threshold), final_resolution(final_resolution), num_partitions(num_partitions), num_processors(num_processors), output_file(output_file), log_file(log_file), log_level(log_level), num_calls_to_log_write(0) {
             if(this->log_level > 0) {
                 this->start_time = std::chrono::steady_clock::now();
                 this->log_file_handle.open(this->log_file);
@@ -42,15 +43,155 @@ class Consensus {
             }
         };
         virtual int main() = 0;
-        void remove_edges_based_on_threshold(igraph_t* graph, double current_threshold);
-        int write_to_log_file(std::string message, int message_type);
-        void write_partition_map(std::map<int,int>& final_partition);
-        void start_workers(std::vector<std::map<int,int>>& results, igraph_t* graph);
+        int WriteToLogFile(std::string message, int message_type);
+        void WritePartitionMap(std::map<int, int>& final_partition);
         virtual ~Consensus() {
             if(this->log_level > 0) {
                 this->log_file_handle.close();
             }
         }
+
+
+        static inline void RemoveEdgesBasedOnThreshold(igraph_t* graph, double current_threshold) {
+            igraph_vector_int_t edges_to_remove;
+            igraph_vector_int_init(&edges_to_remove, 0);
+            igraph_eit_t eit;
+            igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+                igraph_real_t current_edge_weight = EAN(graph, "weight", IGRAPH_EIT_GET(eit));
+                if(current_edge_weight < current_threshold) {
+                    igraph_vector_int_push_back(&edges_to_remove, IGRAPH_EIT_GET(eit));
+                }
+            }
+            igraph_es_t es;
+            igraph_es_vector_copy(&es, &edges_to_remove);
+            igraph_delete_edges(graph, es);
+            igraph_eit_destroy(&eit);
+            igraph_es_destroy(&es);
+            igraph_vector_int_destroy(&edges_to_remove);
+        }
+
+        static inline void RunLouvainAndUpdatePartition(std::map<int, int>& partition_map, int seed, igraph_t* graph) {
+            igraph_vector_int_t membership;
+            igraph_vector_int_init(&membership, 0);
+            igraph_rng_seed(igraph_rng_default(), seed);
+            igraph_community_multilevel(graph, 0, 1, &membership, 0, 0);
+
+            igraph_eit_t eit;
+            igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            std::set<int> visited;
+            for (; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+                igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
+                int from_node = IGRAPH_FROM(graph, current_edge);
+                int to_node = IGRAPH_TO(graph, current_edge);
+                if(!visited.contains(from_node)) {
+                    visited.insert(from_node);
+                    partition_map[from_node] = VECTOR(membership)[from_node];
+                }
+                if(!visited.contains(to_node)) {
+                    visited.insert(to_node);
+                    partition_map[to_node] = VECTOR(membership)[to_node];
+                }
+            }
+            igraph_eit_destroy(&eit);
+            igraph_vector_int_destroy(&membership);
+        }
+
+        static inline void RunLeidenAndUpdatePartition(std::map<int, int>& partition_map, MutableVertexPartition* partition, igraph_t* graph) {
+            Optimiser o;
+            o.optimise_partition(partition);
+            igraph_eit_t eit;
+            igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            std::set<int> visited;
+            for (; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+                igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
+                int from_node = IGRAPH_FROM(graph, current_edge);
+                int to_node = IGRAPH_TO(graph, current_edge);
+                if(!visited.contains(from_node)) {
+                    visited.insert(from_node);
+                    partition_map[from_node] = partition->membership(from_node);
+                }
+                if(!visited.contains(to_node)) {
+                    visited.insert(to_node);
+                    partition_map[to_node] = partition->membership(to_node);
+                }
+            }
+            igraph_eit_destroy(&eit);
+        }
+
+        static inline void SetIgraphAllEdgesWeight(igraph_t* graph, double weight) {
+            igraph_eit_t eit;
+            igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+                SETEAN(graph, "weight", IGRAPH_EIT_GET(eit), 1);
+            }
+            igraph_eit_destroy(&eit);
+        }
+
+        static inline void ClusterWorker(std::string edgelist, std::vector<std::string>& algorithm_vector, std::vector<double>& clustering_parameter_vector, igraph_t* graph_ptr) {
+            while(true) {
+                std::unique_lock<std::mutex> num_partition_lock{Consensus::num_partition_index_mutex};
+                int current_index = Consensus::num_partition_index_queue.front();
+                Consensus::num_partition_index_queue.pop();
+                num_partition_lock.unlock();
+                if(current_index == -1) {
+                    // done with work
+                    return;
+                }
+                std::map<int, int> clustering = Consensus::GetCommunities(edgelist, algorithm_vector[current_index], current_index, clustering_parameter_vector[current_index], graph_ptr);
+                {
+                    std::lock_guard<std::mutex> done_being_clustered_guard(Consensus::done_being_clustered_mutex);
+                    Consensus::done_being_clustered_clusterings.push(clustering);
+                }
+            }
+        }
+
+        static inline std::map<int, int> GetCommunities(std::string edgelist, std::string algorithm, int seed, double clustering_parameter, igraph_t* graph_ptr) {
+            std::map<int, int> partition_map;
+            igraph_t graph;
+            if(graph_ptr == nullptr) {
+                FILE* edgelist_file = fopen(edgelist.c_str(), "r");
+                igraph_set_attribute_table(&igraph_cattribute_table);
+                igraph_read_graph_edgelist(&graph, edgelist_file, 0, false);
+                fclose(edgelist_file);
+                SetIgraphAllEdgesWeight(&graph, 1);
+
+            } else {
+                graph = *graph_ptr;
+            }
+
+            if(algorithm == "louvain") {
+                RunLouvainAndUpdatePartition(partition_map, seed, &graph);
+            } else if(algorithm == "leiden-cpm") {
+                Graph leiden_graph(&graph);
+                CPMVertexPartition partition(&leiden_graph, clustering_parameter);
+                RunLeidenAndUpdatePartition(partition_map, &partition, &graph);
+            } else if(algorithm == "leiden-mod") {
+                Graph leiden_graph(&graph);
+                ModularityVertexPartition partition(&leiden_graph);
+                RunLeidenAndUpdatePartition(partition_map, &partition, &graph);
+            } else {
+                throw std::invalid_argument("GetCommunities(): Unsupported algorithm");
+            }
+
+            if(graph_ptr == NULL) {
+                igraph_destroy(&graph);
+            }
+            return partition_map;
+        }
+
+        static inline void SetIgraphEdgeWeightFromVertices(igraph_t* graph, int from_node, int to_node, double edge_weight) {
+            igraph_es_t graph_es;
+            igraph_es_pairs_small(&graph_es, false, from_node, to_node, -1);
+            igraph_eit_t graph_single_edge_eit;
+            igraph_eit_create(graph, graph_es, &graph_single_edge_eit);
+            for(; !IGRAPH_EIT_END(graph_single_edge_eit); IGRAPH_EIT_NEXT(graph_single_edge_eit)) {
+                SETEAN(graph, "weight", IGRAPH_EIT_GET(graph_single_edge_eit), edge_weight);
+            }
+            igraph_eit_destroy(&graph_single_edge_eit);
+            igraph_es_destroy(&graph_es);
+        }
+
     protected:
         std::string edgelist;
         std::string partition_file;
@@ -67,23 +208,11 @@ class Consensus {
         std::vector<std::string> algorithm_vector;
         std::vector<double> weight_vector;
         std::vector<double> clustering_parameter_vector;
+        int num_calls_to_log_write;
+        static inline std::mutex num_partition_index_mutex;
+        static inline std::queue<int> num_partition_index_queue;
+        static inline std::mutex done_being_clustered_mutex;
+        static inline std::queue<std::map<int, int>> done_being_clustered_clusterings;
 };
 
-class ThresholdConsensus : public Consensus {
-    public:
-        ThresholdConsensus(std::string edgelist, std::string partition_file, std::string final_algorithm, double threshold, double final_resolution, int num_partitions, int num_processors, std::string output_file, std::string log_file, int log_level) : Consensus(edgelist, partition_file, final_algorithm, threshold, final_resolution, num_partitions, num_processors, output_file, log_file, log_level) {
-        };
-        int main();
-};
-
-class SimpleConsensus : public Consensus {
-    public:
-        SimpleConsensus(std::string edgelist, std::string partition_file, std::string final_algorithm, double threshold, double final_resolution, double delta, int max_iter, int num_partitions, int num_processors, std::string output_file, std::string log_file, int log_level) : Consensus(edgelist, partition_file, final_algorithm, threshold, final_resolution, num_partitions, num_processors, output_file, log_file, log_level), delta(delta), max_iter(max_iter)  {
-        };
-        bool check_convergence(igraph_t* graph_ptr, double max_weight, int iter_count);
-        int main();
-    private:
-        double delta;
-        int max_iter;
-};
 #endif

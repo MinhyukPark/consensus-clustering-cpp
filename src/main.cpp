@@ -2,7 +2,8 @@
 
 #include "argparse.h"
 #include "library.h"
-#include "consensus.h"
+#include "simple_consensus.h"
+#include "threshold_consensus.h"
 
 int main(int argc, char* argv[]) {
     argparse::ArgumentParser main_program("consensus-clustering");
