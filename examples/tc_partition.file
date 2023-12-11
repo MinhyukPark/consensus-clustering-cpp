@@ -1,10 +1,2 @@
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
-louvain -1 0.2
+leiden-cpm -1 0.01
+leiden-cpm -1 0.01

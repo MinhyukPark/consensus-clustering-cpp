@@ -3,6 +3,23 @@
 /*
  * message type here is 1 for INFO, 2 for DEBUG, and -1 for ERROR
  */
+void Consensus::StartWorkers(igraph_t* graph_ptr) {
+    for(int i = 0; i < this->num_partitions; i ++) {
+        Consensus::num_partition_index_queue.push(i);
+    }
+    for(int i = 0; i < this->num_processors; i ++) {
+        Consensus::num_partition_index_queue.push(-1);
+    }
+
+    std::vector<std::thread> thread_vector;
+    for(int i = 0; i < this->num_processors; i ++) {
+        thread_vector.push_back(std::thread(Consensus::ClusterWorker, this->edgelist, std::ref(this->algorithm_vector), std::ref(this->clustering_parameter_vector), graph_ptr));
+    }
+
+    for(int i = 0; i < this->num_processors; i ++) {
+        thread_vector[i].join();
+    }
+}
 int Consensus::WriteToLogFile(std::string message, int message_type) {
     if(this->log_level > 0) {
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();

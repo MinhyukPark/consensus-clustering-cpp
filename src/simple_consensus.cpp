@@ -57,21 +57,7 @@ int SimpleConsensus::main() {
 
         std::vector<std::map<int, int>> results;
         this->WriteToLogFile("Starting workers" , 1);
-        for(int i = 0; i < this->num_partitions; i ++) {
-            Consensus::num_partition_index_queue.push(i);
-        }
-        for(int i = 0; i < this->num_partitions; i ++) {
-            Consensus::num_partition_index_queue.push(-1);
-        }
-
-        std::vector<std::thread> thread_vector;
-        for(int i = 0; i < this->num_processors; i ++) {
-            thread_vector.push_back(std::thread(Consensus::ClusterWorker, this->edgelist, std::ref(this->algorithm_vector), std::ref(this->clustering_parameter_vector), &graph));
-        }
-
-        for(int i = 0; i < this->num_processors; i ++) {
-            thread_vector[i].join();
-        }
+        this->StartWorkers(&graph);
         while(!Consensus::done_being_clustered_clusterings.empty()) {
             results.push_back(Consensus::done_being_clustered_clusterings.front());
             Consensus::done_being_clustered_clusterings.pop();
@@ -81,7 +67,7 @@ int SimpleConsensus::main() {
 
         for(int i = 0; i < this->num_partitions; i++) {
             this->WriteToLogFile("Starting to incorate results from worker: " + std::to_string(i) , 1);
-            std::map<int, int> current_partition = results[i];
+            std::map<int, int> current_partition = results.at(i);
             igraph_eit_t eit;
             igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
             for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
@@ -90,7 +76,7 @@ int SimpleConsensus::main() {
                 int to_node = IGRAPH_TO(&graph, current_edge);
                 igraph_real_t edge_weight = EAN(&graph, "weight", current_edge);
                 if(edge_weight != 0 && edge_weight != max_weight) {
-                    if(current_partition[from_node] != current_partition[to_node]) {
+                    if(current_partition.at(from_node) != current_partition.at(to_node)) {
                         edge_weight += (1 * (this->weight_vector[i]));
                     }
                 }

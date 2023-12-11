@@ -3,27 +3,11 @@
 int ThresholdConsensus::main() {
     std::vector<std::map<int, int>> results;
     this->WriteToLogFile("Starting workers" , 1);
-    for(int i = 0; i < this->num_partitions; i ++) {
-        Consensus::num_partition_index_queue.push(i);
-    }
-    for(int i = 0; i < this->num_processors; i ++) {
-        Consensus::num_partition_index_queue.push(-1);
-    }
-
-    std::vector<std::thread> thread_vector;
-    for(int i = 0; i < this->num_processors; i ++) {
-        thread_vector.push_back(std::thread(Consensus::ClusterWorker, this->edgelist, std::ref(this->algorithm_vector), std::ref(this->clustering_parameter_vector), nullptr));
-    }
-
-    for(int i = 0; i < this->num_processors; i ++) {
-        thread_vector[i].join();
-    }
-
+    this->StartWorkers(nullptr);
     while(!Consensus::done_being_clustered_clusterings.empty()) {
         results.push_back(Consensus::done_being_clustered_clusterings.front());
         Consensus::done_being_clustered_clusterings.pop();
     }
-
     this->WriteToLogFile("Got results back from workers" , 1);
 
 
@@ -44,13 +28,13 @@ int ThresholdConsensus::main() {
     igraph_eit_t eit;
     igraph_eit_create(&graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
     for(int i = 0; i < this->num_partitions; i++) {
-        std::map<int,int> current_partition = results[i];
+        std::map<int,int> current_partition = results.at(i);
         IGRAPH_EIT_RESET(eit);
         for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
             igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
             int from_node = IGRAPH_FROM(&graph, current_edge);
             int to_node = IGRAPH_TO(&graph, current_edge);
-            if(!current_partition.contains(from_node) || !current_partition.contains(to_node) || current_partition[from_node] != current_partition[to_node]) {
+            if(current_partition.at(from_node) != current_partition.at(to_node)) {
                 igraph_real_t current_edge_weight = EAN(&graph, "weight", IGRAPH_EIT_GET(eit));
                 SETEAN(&graph, "weight", IGRAPH_EIT_GET(eit), current_edge_weight - ((double)1/this->num_partitions));
             }

@@ -45,6 +45,7 @@ class Consensus {
         virtual int main() = 0;
         int WriteToLogFile(std::string message, int message_type);
         void WritePartitionMap(std::map<int, int>& final_partition);
+        void StartWorkers(igraph_t* graph);
         virtual ~Consensus() {
             if(this->log_level > 0) {
                 this->log_file_handle.close();
