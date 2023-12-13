@@ -3,6 +3,7 @@
 #include "argparse.h"
 #include "library.h"
 #include "simple_consensus.h"
+#include "multi_resolution_consensus.h"
 #include "threshold_consensus.h"
 
 int main(int argc, char* argv[]) {
@@ -10,8 +11,12 @@ int main(int argc, char* argv[]) {
     argparse::ArgumentParser simple_consensus("simple");
     simple_consensus.add_description("Simple consensus algorithm");
 
+    argparse::ArgumentParser multi_resolution_consensus("multi_resolution");
+    multi_resolution_consensus.add_description("Multi-resolution consensus algorithm");
+
     argparse::ArgumentParser threshold_consensus("threshold");
     threshold_consensus.add_description("Threshold consensus algorithm (set threshold to 1 for strict consensus)");
+
 
     simple_consensus.add_argument("--edgelist")
         .required()
@@ -63,6 +68,43 @@ int main(int argc, char* argv[]) {
         .help("Log level where 0 = silent, 1 = info, 2 = verbose")
         .scan<'d', int>();
 
+    multi_resolution_consensus.add_argument("--edgelist")
+        .required()
+        .help("Network edge-list file");
+    multi_resolution_consensus.add_argument("--threshold")
+        .default_value(double(1.0))
+        .help("Threshold value")
+        .scan<'f', double>();
+    multi_resolution_consensus.add_argument("--partition-file")
+        .required()
+        .help("Clustering partition file where the first column is one of (leiden-cpm, leiden-mod, louvain), second column is its weight, and the third column is the clustering method parameter (resolution value for leiden-cpm, ignored for leiden-mod and louvain. One can put -1 here in these cases).");
+    multi_resolution_consensus.add_argument("--delta")
+        .default_value(double(0.02))
+        .help("Convergence parameter")
+        .scan<'f', double>();
+    multi_resolution_consensus.add_argument("--max-iter")
+        .default_value(int(2))
+        .help("Maximum number of iterations in simple consensus")
+        .scan<'d', int>();
+    multi_resolution_consensus.add_argument("--partitions")
+        .default_value(int(10))
+        .help("Number of partitions in consensus clustering")
+        .scan<'d', int>();
+    multi_resolution_consensus.add_argument("--num-processors")
+        .default_value(int(1))
+        .help("Number of processors")
+        .scan<'d', int>();
+    multi_resolution_consensus.add_argument("--output-file")
+        .required()
+        .help("Output clustering file");
+    multi_resolution_consensus.add_argument("--log-file")
+        .required()
+        .help("Output log file");
+    multi_resolution_consensus.add_argument("--log-level")
+        .default_value(int(1))
+        .help("Log level where 0 = silent, 1 = info, 2 = verbose")
+        .scan<'d', int>();
+
     threshold_consensus.add_argument("--edgelist")
         .required()
         .help("Network edge-list file");
@@ -106,6 +148,7 @@ int main(int argc, char* argv[]) {
         .scan<'d', int>();
 
     main_program.add_subparser(simple_consensus);
+    main_program.add_subparser(multi_resolution_consensus);
     main_program.add_subparser(threshold_consensus);
     try {
         main_program.parse_args(argc, argv);
@@ -131,6 +174,20 @@ int main(int argc, char* argv[]) {
         Consensus* sc = new SimpleConsensus(edgelist, partition_file, final_algorithm, threshold, final_resolution, delta, max_iter, num_partitions, num_processors, output_file, log_file, log_level);
         sc->main();
         delete sc;
+    } else if(main_program.is_subcommand_used(multi_resolution_consensus)) {
+        std::string edgelist = multi_resolution_consensus.get<std::string>("--edgelist");
+        std::string partition_file = multi_resolution_consensus.get<std::string>("--partition-file");
+        double threshold = multi_resolution_consensus.get<double>("--threshold");
+        double delta = multi_resolution_consensus.get<double>("--delta");
+        int max_iter = multi_resolution_consensus.get<int>("--max-iter");
+        int num_partitions = multi_resolution_consensus.get<int>("--partitions");
+        int num_processors = multi_resolution_consensus.get<int>("--num-processors");
+        std::string output_file = multi_resolution_consensus.get<std::string>("--output-file");
+        std::string log_file = multi_resolution_consensus.get<std::string>("--log-file");
+        int log_level = multi_resolution_consensus.get<int>("--log-level");
+        Consensus* mrc = new MultiResolutionConsensus(edgelist, partition_file, threshold, delta, max_iter, num_partitions, num_processors, output_file, log_file, log_level);
+        mrc->main();
+        delete mrc;
     } else if (main_program.is_subcommand_used(threshold_consensus)) {
         std::string edgelist = threshold_consensus.get<std::string>("--edgelist");
         std::string partition_file = threshold_consensus.get<std::string>("--partition-file");

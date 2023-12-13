@@ -52,6 +52,25 @@ class Consensus {
             }
         }
 
+        static inline std::map<int, int> GetConnectedComponents(igraph_t* graph_ptr) {
+            std::map<int, int> partition;
+            igraph_vector_int_t component_id_vector;
+            igraph_vector_int_init(&component_id_vector, 0);
+            igraph_vector_int_t membership_size_vector;
+            igraph_vector_int_init(&membership_size_vector, 0);
+            igraph_integer_t number_of_components;
+            igraph_connected_components(graph_ptr, &component_id_vector, &membership_size_vector, &number_of_components, IGRAPH_WEAK);
+            for(int node_id = 0; node_id < igraph_vcount(graph_ptr); node_id ++) {
+                int current_component_id = VECTOR(component_id_vector)[node_id];
+                if(VECTOR(membership_size_vector)[current_component_id] > 1) {
+                    partition[node_id] = current_component_id;
+                }
+            }
+            igraph_vector_int_destroy(&component_id_vector);
+            igraph_vector_int_destroy(&membership_size_vector);
+            return partition;
+        }
+
 
         static inline void RemoveEdgesBasedOnThreshold(igraph_t* graph, double current_threshold) {
             igraph_vector_int_t edges_to_remove;

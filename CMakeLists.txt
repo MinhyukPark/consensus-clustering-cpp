@@ -36,6 +36,7 @@ else()
     set(SOURCE_MAIN ${CMAKE_SOURCE_DIR}/src/main.cpp)
     set(SOURCE_INTERNAL_LIBS
         ${CMAKE_SOURCE_DIR}/src/simple_consensus.cpp
+        ${CMAKE_SOURCE_DIR}/src/multi_resolution_consensus.cpp
         ${CMAKE_SOURCE_DIR}/src/threshold_consensus.cpp
         ${CMAKE_SOURCE_DIR}/src/consensus.cpp)
     #[[ CONSTANTS END ]]
