@@ -95,3 +95,25 @@ Optional arguments:
   --log-file          Output log file [required]
   --log-level         Log level where 0 = silent, 1 = info, 2 = verbose [default: 1]
 ```
+
+### Multi-resolution consensus
+See description in the report. This does not yet support IKC and strict consensus in the final step. The best-scoring selection in the final step is also not included yet.
+```
+Usage: consensus-clustering multi_resolution [--help] [--version] --edgelist VAR [--threshold VAR] --partition-file VAR [--delta VAR] [--max-iter VAR] [--partitions VAR] [--num-processors VAR] --output-file VAR --log-file VAR [--log-level VAR]
+
+Multi-resolution consensus algorithm
+
+Optional arguments:
+  -h, --help        shows help message and exits
+  -v, --version     prints version information and exits
+  --edgelist        Network edge-list file [required]
+  --threshold       Threshold value [default: 1]
+  --partition-file  Clustering partition file where the first column is one of (leiden-cpm, leiden-mod, louvain), second column is its weight, and the third column is the clustering method parameter (resolution value for leiden-cpm, ignored for leiden-mod and louvain. One can put -1 here in these cases). [required]
+  --delta           Convergence parameter [default: 0.02]
+  --max-iter        Maximum number of iterations in simple consensus [default: 2]
+  --partitions      Number of partitions in consensus clustering [default: 10]
+  --num-processors  Number of processors [default: 1]
+  --output-file     Output clustering file [required]
+  --log-file        Output log file [required]
+  --log-level       Log level where 0 = silent, 1 = info, 2 = verbose [default: 1]
+```
