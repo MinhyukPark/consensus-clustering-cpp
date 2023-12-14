@@ -8,6 +8,11 @@ bool MultiResolutionConsensus::CheckConvergence(igraph_t* lhs_graph_ptr, igraph_
     }
     igraph_bool_t is_identical;
     igraph_is_same_graph(lhs_graph_ptr, rhs_graph_ptr, &is_identical);
+    if(is_identical) {
+        this->WriteToLogFile("Graphs identical", 1);
+    } else {
+        this->WriteToLogFile("Graphs identical" , 1);
+    }
     return is_identical;
 }
 
@@ -43,7 +48,7 @@ int MultiResolutionConsensus::main() {
         igraph_copy(&next_graph, &graph);
         this->WriteToLogFile("Finshed copying the intermediate graphs", 1);
         this->WriteToLogFile("Starting to set the edge weight for the intermediate graph", 1);
-        Consensus::SetIgraphAllEdgesWeight(&next_graph, 1);
+        Consensus::SetIgraphAllEdgesWeight(&next_graph, 0);
         this->WriteToLogFile("Finsihed setting the edge weight for the intermediate graph", 1);
 
         std::vector<std::map<int, int>> results;
@@ -67,8 +72,11 @@ int MultiResolutionConsensus::main() {
                 int to_node = IGRAPH_TO(&graph, current_edge);
                 igraph_real_t edge_weight = EAN(&graph, "weight", current_edge);
                 if(edge_weight != 0 && edge_weight != max_weight) {
-                    if(current_partition.at(from_node) != current_partition.at(to_node)) {
-                        edge_weight += (1 * (this->weight_vector[i]));
+                    if(current_partition.at(from_node) == current_partition.at(to_node)) {
+                        igraph_integer_t next_graph_current_edge;
+                        igraph_get_eid(&next_graph, &next_graph_current_edge, from_node, to_node, false, false);
+                        igraph_real_t next_graph_edge_weight = EAN(&next_graph, "weight", next_graph_current_edge);
+                        edge_weight = next_graph_edge_weight + (1 * (this->weight_vector[i]));
                     }
                 }
                 SetIgraphEdgeWeightFromVertices(&next_graph, from_node, to_node, edge_weight);

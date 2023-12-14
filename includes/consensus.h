@@ -117,10 +117,12 @@ class Consensus {
             igraph_vector_int_destroy(&membership);
         }
 
-        static inline void RunLeidenAndUpdatePartition(std::map<int, int>& partition_map, MutableVertexPartition* partition, int seed, igraph_t* graph) {
+        static inline void RunLeidenAndUpdatePartition(std::map<int, int>& partition_map, MutableVertexPartition* partition, int seed, igraph_t* graph, int num_iter= 2) {
             Optimiser o;
-            o.optimise_partition(partition);
             o.set_rng_seed(seed);
+            for(int i = 0; i < num_iter; i ++) {
+                o.optimise_partition(partition);
+            }
             igraph_eit_t eit;
             igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
             std::set<int> visited;
