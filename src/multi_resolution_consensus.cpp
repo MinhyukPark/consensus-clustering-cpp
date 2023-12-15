@@ -11,18 +11,16 @@ bool MultiResolutionConsensus::CheckConvergence(igraph_t* lhs_graph_ptr, igraph_
     if(is_identical) {
         this->WriteToLogFile("Graphs identical", 1);
     } else {
-        this->WriteToLogFile("Graphs identical" , 1);
+        this->WriteToLogFile("Graphs not identical" , 1);
     }
     return is_identical;
 }
 
 int MultiResolutionConsensus::main() {
     this->WriteToLogFile("Loading the initial graph" , 1);
-    FILE* edgelist_file = fopen(this->edgelist.c_str(), "r");
     igraph_t graph;
     igraph_set_attribute_table(&igraph_cattribute_table);
-    igraph_read_graph_edgelist(&graph, edgelist_file, 0, false);
-    fclose(edgelist_file);
+    this->LoadIgraphFromFile(&graph);
     this->WriteToLogFile("Finished loading the initial graph" , 1);
     this->WriteToLogFile("Started setting the default edge weights for the initial graph" , 1);
     Consensus::SetIgraphAllEdgesWeight(&graph, 1);
@@ -35,7 +33,7 @@ int MultiResolutionConsensus::main() {
     }
 
     igraph_t next_graph;
-    while (!MultiResolutionConsensus::CheckConvergence(&graph, &next_graph, iter_count) && iter_count < max_iter) {
+    while (!MultiResolutionConsensus::CheckConvergence(&graph, &next_graph, iter_count) || iter_count > max_iter) {
         if(iter_count != 0) {
             igraph_destroy(&graph);
             igraph_copy(&graph, &next_graph);
@@ -70,16 +68,20 @@ int MultiResolutionConsensus::main() {
                 igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
                 int from_node = IGRAPH_FROM(&graph, current_edge);
                 int to_node = IGRAPH_TO(&graph, current_edge);
-                igraph_real_t edge_weight = EAN(&graph, "weight", current_edge);
-                if(edge_weight != 0 && edge_weight != max_weight) {
+
+                igraph_integer_t next_graph_current_edge;
+                igraph_get_eid(&next_graph, &next_graph_current_edge, from_node, to_node, false, false);
+
+                igraph_real_t graph_edge_weight = EAN(&graph, "weight", current_edge);
+                if(graph_edge_weight != 0 && graph_edge_weight != max_weight) {
                     if(current_partition.at(from_node) == current_partition.at(to_node)) {
-                        igraph_integer_t next_graph_current_edge;
-                        igraph_get_eid(&next_graph, &next_graph_current_edge, from_node, to_node, false, false);
                         igraph_real_t next_graph_edge_weight = EAN(&next_graph, "weight", next_graph_current_edge);
-                        edge_weight = next_graph_edge_weight + (1 * (this->weight_vector[i]));
+                        next_graph_edge_weight += (1 * (this->weight_vector[i]));
+                        SETEAN(&next_graph, "weight", next_graph_current_edge, next_graph_edge_weight);
                     }
+                } else {
+                    SETEAN(&next_graph, "weight", next_graph_current_edge, graph_edge_weight);
                 }
-                SetIgraphEdgeWeightFromVertices(&next_graph, from_node, to_node, edge_weight);
             }
             igraph_eit_destroy(&eit);
             this->WriteToLogFile("Finished incorpating results from worker: " + std::to_string(i) , 1);

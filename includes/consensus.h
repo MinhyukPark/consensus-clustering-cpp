@@ -45,6 +45,7 @@ class Consensus {
         virtual int main() = 0;
         int WriteToLogFile(std::string message, int message_type);
         void WritePartitionMap(std::map<int, int>& final_partition);
+        void LoadIgraphFromFile(igraph_t* graph_ptr);
         void StartWorkers(igraph_t* graph);
         virtual ~Consensus() {
             if(this->log_level > 0) {
@@ -60,12 +61,28 @@ class Consensus {
             igraph_vector_int_init(&membership_size_vector, 0);
             igraph_integer_t number_of_components;
             igraph_connected_components(graph_ptr, &component_id_vector, &membership_size_vector, &number_of_components, IGRAPH_WEAK);
-            for(int node_id = 0; node_id < igraph_vcount(graph_ptr); node_id ++) {
-                int current_component_id = VECTOR(component_id_vector)[node_id];
-                if(VECTOR(membership_size_vector)[current_component_id] > 1) {
-                    partition[node_id] = current_component_id;
+
+            igraph_eit_t eit;
+            igraph_eit_create(graph_ptr, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
+                igraph_integer_t current_edge = IGRAPH_EIT_GET(eit);
+                int from_node = IGRAPH_FROM(graph_ptr, current_edge);
+                if(!partition.contains(from_node)) {
+                    int from_component_id = VECTOR(component_id_vector)[from_node];
+                    if(VECTOR(membership_size_vector)[from_component_id] > 1) {
+                        partition[from_node] = from_component_id;
+                    }
                 }
+                int to_node = IGRAPH_TO(graph_ptr, current_edge);
+                if(!partition.contains(to_node)) {
+                    int from_component_id = VECTOR(component_id_vector)[to_node];
+                    if(VECTOR(membership_size_vector)[from_component_id] > 1) {
+                        partition[to_node] = from_component_id;
+                    }
+                }
+
             }
+            igraph_eit_destroy(&eit);
             igraph_vector_int_destroy(&component_id_vector);
             igraph_vector_int_destroy(&membership_size_vector);
             return partition;
@@ -145,8 +162,10 @@ class Consensus {
         static inline void SetIgraphAllEdgesWeight(igraph_t* graph, double weight) {
             igraph_eit_t eit;
             igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+            std::set<std::pair<int, int>> edge_set;
             for(; !IGRAPH_EIT_END(eit); IGRAPH_EIT_NEXT(eit)) {
-                SETEAN(graph, "weight", IGRAPH_EIT_GET(eit), 1);
+                int current_edge = IGRAPH_EIT_GET(eit);
+                SETEAN(graph, "weight", IGRAPH_EIT_GET(eit), weight);
             }
             igraph_eit_destroy(&eit);
         }

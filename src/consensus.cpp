@@ -3,6 +3,16 @@
 /*
  * message type here is 1 for INFO, 2 for DEBUG, and -1 for ERROR
  */
+
+void Consensus::LoadIgraphFromFile(igraph_t* graph_ptr) {
+    FILE* edgelist_file = fopen(this->edgelist.c_str(), "r");
+    igraph_read_graph_edgelist(graph_ptr, edgelist_file, 0, false);
+    fclose(edgelist_file);
+    bool remove_parallel_edges = true;
+    bool remove_self_loops = true;
+    igraph_simplify(graph_ptr, remove_parallel_edges, remove_self_loops, NULL);
+}
+
 void Consensus::StartWorkers(igraph_t* graph_ptr) {
     for(int i = 0; i < this->num_partitions; i ++) {
         Consensus::num_partition_index_queue.push(i);
