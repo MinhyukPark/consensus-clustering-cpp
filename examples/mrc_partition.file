@@ -1,3 +1,3 @@
-leiden-cpm 1 0.01
-leiden-cpm 1 0.001
-leiden-cpm 1 0.0001
+louvain 1 0.5
+louvain 1 0.2
+louvain 1 0.0001

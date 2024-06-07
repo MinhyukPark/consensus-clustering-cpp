@@ -108,11 +108,11 @@ class Consensus {
             igraph_vector_int_destroy(&edges_to_remove);
         }
 
-        static inline void RunLouvainAndUpdatePartition(std::map<int, int>& partition_map, int seed, igraph_t* graph) {
+        static inline void RunLouvainAndUpdatePartition(std::map<int, int>& partition_map, int seed, double resolution_value, igraph_t* graph) {
             igraph_vector_int_t membership;
             igraph_vector_int_init(&membership, 0);
             igraph_rng_seed(igraph_rng_default(), seed);
-            igraph_community_multilevel(graph, 0, 1, &membership, 0, 0);
+            igraph_community_multilevel(graph, 0, resolution_value, &membership, 0, 0);
 
             igraph_eit_t eit;
             igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
@@ -203,7 +203,7 @@ class Consensus {
             }
 
             if(algorithm == "louvain") {
-                RunLouvainAndUpdatePartition(partition_map, seed, &graph);
+                RunLouvainAndUpdatePartition(partition_map, seed, clustering_parameter, &graph);
             } else if(algorithm == "leiden-cpm") {
                 Graph leiden_graph(&graph);
                 CPMVertexPartition partition(&leiden_graph, clustering_parameter);
