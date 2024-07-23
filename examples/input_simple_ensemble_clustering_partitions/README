@@ -1,0 +1,6 @@
+should be 10,2,3 in one partition and 6,7,8 in another partition if threshold is 0.49
+should be 10,2,3 in one partition if threshold is 0.51
+
+./consensus_clustering simple_ensemble_clustering --edgelist ./examples/input_simple_ensemble_clustering_partitions/edgelist.tsv --threshold 0.51 --clustering-files ./examples/input_simple_ensemble_clustering_partitions/partition_0.file ./examples/input_simple_ensemble_clustering_partitions/partition_1.file ./examples/input_simple_ensemble_clustering_partitions/partition_2.file --clustering-weights 1 1 1 --output-file ./simple_ensemble_clustering.clustering --log-file simple_ensemble_clustering.log --log-level 2
+
+./consensus_clustering simple_ensemble_clustering --edgelist ./examples/input_simple_ensemble_clustering_partitions/edgelist.tsv --threshold 0.49 --clustering-files ./examples/input_simple_ensemble_clustering_partitions/partition_0.file ./examples/input_simple_ensemble_clustering_partitions/partition_1.file ./examples/input_simple_ensemble_clustering_partitions/partition_2.file --clustering-weights 1 1 1 --output-file ./simple_ensemble_clustering.clustering --log-file simple_ensemble_clustering.log --log-level 2
