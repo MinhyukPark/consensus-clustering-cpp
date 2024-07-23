@@ -75,3 +75,11 @@ void Consensus::WritePartitionMap(std::map<int, int>& final_partition) {
     }
     clustering_output.close();
 }
+
+void Consensus::WritePartitionMapWithTranslation(std::map<int, int>& final_partition, igraph_t* graph_ptr) {
+    std::ofstream clustering_output(this->output_file);
+    for(auto const& [node_id, cluster_id]: final_partition) {
+        clustering_output << VAS(graph_ptr, "name", node_id) << " " << cluster_id << '\n';
+    }
+    clustering_output.close();
+}

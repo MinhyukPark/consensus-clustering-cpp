@@ -49,6 +49,27 @@ leiden-cpm 1 0.2
 leiden-cpm 1 0.2
 ```
 
+
+
+### Simple ensemble clustering
+Takes input culstering algorithms and gets the consensus based on a threshold
+```
+Usage: simple_ensemble_clustering [--help] [--version] --edgelist VAR [--threshold VAR] --clustering-files VAR... --clustering-weights VAR... --output-file VAR --log-file VAR [--log-level VAR]
+
+Simple ensemble clusetring algorithm with weights
+
+Optional arguments:
+  -h, --help            shows help message and exits
+  -v, --version         prints version information and exits
+  --edgelist            Network edge-list file [required]
+  --threshold           Threshold value [default: 1]
+  --clustering-files    Input clustering files [nargs: 1 or more] [required]
+  --clustering-weights  Input clustering weights [nargs: 1 or more] [required]
+  --output-file         Output clustering file [required]
+  --log-file            Output log file [required]
+  --log-level           Log level where 0 = silent, 1 = info, 2 = verbose [default: 1]
+```
+
 ### Threshold consensus
 This implementation of the Threshold Consensus runs a clustering algorithm $n_p$ times with different random seeds in a single iteration and only keeps the edges that appear in at least $\tau$ proportion of the partitions. When $\tau=1$, this is equivalent to *strict* consensus.
 ```

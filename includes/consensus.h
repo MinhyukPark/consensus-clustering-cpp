@@ -21,6 +21,13 @@
 
 class Consensus {
     public:
+        Consensus(std::string edgelist, double threshold, std::string output_file, std::string log_file, int log_level) : edgelist(edgelist), threshold(threshold), output_file(output_file), log_file(log_file), log_level(log_level), num_calls_to_log_write(0) {
+            // constructor for strict consensus
+            if(this->log_level > 0) {
+                this->start_time = std::chrono::steady_clock::now();
+                this->log_file_handle.open(this->log_file);
+            }
+        };
         Consensus(std::string edgelist, std::string partition_file, std::string final_algorithm, double threshold, double final_resolution, int num_partitions, int num_processors, std::string output_file, std::string log_file, int log_level) : edgelist(edgelist), partition_file(partition_file), final_algorithm(final_algorithm), threshold(threshold), final_resolution(final_resolution), num_partitions(num_partitions), num_processors(num_processors), output_file(output_file), log_file(log_file), log_level(log_level), num_calls_to_log_write(0) {
             if(this->log_level > 0) {
                 this->start_time = std::chrono::steady_clock::now();
@@ -45,6 +52,7 @@ class Consensus {
         virtual int main() = 0;
         int WriteToLogFile(std::string message, int message_type);
         void WritePartitionMap(std::map<int, int>& final_partition);
+        void WritePartitionMapWithTranslation(std::map<int, int>& final_partition, igraph_t* graph_ptr);
         void LoadIgraphFromFile(igraph_t* graph_ptr);
         void StartWorkers(igraph_t* graph);
         virtual ~Consensus() {
@@ -232,6 +240,28 @@ class Consensus {
             }
             igraph_eit_destroy(&graph_single_edge_eit);
             igraph_es_destroy(&graph_es);
+        }
+
+        static inline std::map<std::string, std::string> ReadClusteringFile(std::string clustering_file) {
+            std::map<std::string, std::string> input_clustering;
+            std::map<std::string, std::vector<std::string>> cluster_id_to_membership_map;
+            std::string node_id;
+            std::string cluster_id;
+            std::ifstream clustering_file_handle(clustering_file);
+            while(clustering_file_handle >> node_id >> cluster_id) {
+                /* input_clustering[node_id] = cluster_id; */
+                cluster_id_to_membership_map[cluster_id].push_back(node_id);
+            }
+
+            for(auto const& [cluster_id, membership_vector] : cluster_id_to_membership_map) {
+                if(membership_vector.size() > 1) {
+                    for(int i = 0; i < membership_vector.size(); i ++) {
+                        input_clustering[membership_vector[i]] = cluster_id;
+                    }
+                }
+            }
+
+            return input_clustering;
         }
 
     protected:

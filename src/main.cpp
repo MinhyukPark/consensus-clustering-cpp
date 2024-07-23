@@ -5,6 +5,7 @@
 #include "simple_consensus.h"
 #include "multi_resolution_consensus.h"
 #include "threshold_consensus.h"
+#include "simple_ensemble_clustering.h"
 
 int main(int argc, char* argv[]) {
     argparse::ArgumentParser main_program("consensus-clustering");
@@ -15,7 +16,10 @@ int main(int argc, char* argv[]) {
     multi_resolution_consensus.add_description("Multi-resolution consensus algorithm");
 
     argparse::ArgumentParser threshold_consensus("threshold");
-    threshold_consensus.add_description("Threshold consensus algorithm (set threshold to 1 for strict consensus)");
+    threshold_consensus.add_description("Threshold consensus algorithm (clusters at the end)");
+
+    argparse::ArgumentParser simple_ensemble_clustering("simple_ensemble_clustering");
+    simple_ensemble_clustering.add_description("Simple ensemble clusetring algorithm with weights");
 
 
     simple_consensus.add_argument("--edgelist")
@@ -147,9 +151,36 @@ int main(int argc, char* argv[]) {
         .help("Log level where 0 = silent, 1 = info, 2 = verbose")
         .scan<'d', int>();
 
+    simple_ensemble_clustering.add_argument("--edgelist")
+        .required()
+        .help("Network edge-list file");
+    simple_ensemble_clustering.add_argument("--threshold")
+        .default_value(double(1.0))
+        .help("Threshold value")
+        .scan<'f', double>();
+    simple_ensemble_clustering.add_argument("--clustering-files")
+        .nargs(argparse::nargs_pattern::at_least_one)
+        .required()
+        .help("Input clustering files");
+    simple_ensemble_clustering.add_argument("--clustering-weights")
+        .nargs(argparse::nargs_pattern::at_least_one)
+        .required()
+        .help("Input clustering weights");
+    simple_ensemble_clustering.add_argument("--output-file")
+        .required()
+        .help("Output clustering file");
+    simple_ensemble_clustering.add_argument("--log-file")
+        .required()
+        .help("Output log file");
+    simple_ensemble_clustering.add_argument("--log-level")
+        .default_value(int(1))
+        .help("Log level where 0 = silent, 1 = info, 2 = verbose")
+        .scan<'d', int>();
+
     main_program.add_subparser(simple_consensus);
     main_program.add_subparser(multi_resolution_consensus);
     main_program.add_subparser(threshold_consensus);
+    main_program.add_subparser(simple_ensemble_clustering);
     try {
         main_program.parse_args(argc, argv);
     } catch (const std::runtime_error& err) {
@@ -202,5 +233,16 @@ int main(int argc, char* argv[]) {
         Consensus* tc = new ThresholdConsensus(edgelist, partition_file, final_algorithm, threshold, final_resolution, num_partitions, num_processors, output_file, log_file, log_level);
         tc->main();
         delete tc;
+    } else if (main_program.is_subcommand_used(simple_ensemble_clustering)) {
+        std::string edgelist = simple_ensemble_clustering.get<std::string>("--edgelist");
+        double threshold = simple_ensemble_clustering.get<double>("--threshold");
+        std::vector<std::string> clustering_files = simple_ensemble_clustering.get<std::vector<std::string>>("--clustering-files");
+        std::vector<std::string> clustering_weights = simple_ensemble_clustering.get<std::vector<std::string>>("--clustering-weights");
+        std::string output_file = simple_ensemble_clustering.get<std::string>("--output-file");
+        std::string log_file = simple_ensemble_clustering.get<std::string>("--log-file");
+        int log_level = simple_ensemble_clustering.get<int>("--log-level");
+        Consensus* sc = new SimpleEnsembleClustering(edgelist, threshold, clustering_files, clustering_weights, output_file, log_file, log_level);
+        sc->main();
+        delete sc;
     }
 }
