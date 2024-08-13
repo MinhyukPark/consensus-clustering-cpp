@@ -1,4 +1,5 @@
 #include "simple_consensus.h"
+
 bool SimpleConsensus::CheckConvergence(igraph_t* graph_ptr, double max_weight, int iter_count) {
     if(iter_count == 0) {
         // It's the first iteration
@@ -17,7 +18,7 @@ bool SimpleConsensus::CheckConvergence(igraph_t* graph_ptr, double max_weight, i
         num_edges ++ ;
     }
     igraph_eit_destroy(&eit);
-    return count <= this->delta * num_edges;
+    return count <= this->delta * num_edges; //returns true iff converged
 }
 
 int SimpleConsensus::main() {

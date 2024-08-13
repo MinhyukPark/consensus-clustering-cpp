@@ -49,6 +49,29 @@ class Consensus {
                 throw std::invalid_argument("--partition does not equal the number of algorithms provided is the algorithm file");
             }
         };
+        Consensus(std::string edgelist, std::string partition_file, std::string final_algorithm, double threshold, double final_resolution, int num_partitions, int num_processors, std::string output_file, std::string log_file, int log_level, bool voting_flag) : edgelist(edgelist), partition_file(partition_file), final_algorithm(final_algorithm), threshold(threshold), final_resolution(final_resolution), num_partitions(num_partitions), num_processors(num_processors), output_file(output_file), log_file(log_file), log_level(log_level), num_calls_to_log_write(0) {
+            // ensemble consensus
+            if(this->log_level > 0) {
+                this->start_time = std::chrono::steady_clock::now();
+                this->log_file_handle.open(this->log_file);
+            }
+
+            std::ifstream partition_file_handle(this->partition_file);
+            std::string current_algorithm;
+            double current_weight;
+            double current_clustering_parameter;
+            while(partition_file_handle >> current_algorithm >> current_weight >> current_clustering_parameter) {
+                this->algorithm_vector.push_back(current_algorithm);
+                this->weight_vector.push_back(current_weight);
+                this->clustering_parameter_vector.push_back(current_clustering_parameter);
+            }
+            partition_file_handle.close();
+
+            if(this->num_partitions != this->algorithm_vector.size()) {
+                throw std::invalid_argument("--partition does not equal the number of algorithms provided is the algorithm file");
+            }
+            this->voting_flag = voting_flag;
+        };
         virtual int main() = 0;
         int WriteToLogFile(std::string message, int message_type);
         void WritePartitionMap(std::map<int, int>& final_partition);
@@ -189,14 +212,30 @@ class Consensus {
                     return;
                 }
                 std::map<int, int> clustering = Consensus::GetCommunities(edgelist, algorithm_vector[current_index], current_index, clustering_parameter_vector[current_index], graph_ptr);
+                std::map<int, std::vector<int>> cluster_to_nodes_map;
+                if(Consensus::voting_flag) cluster_to_nodes_map = Consensus::GetClusterToNodeMap(clustering);
                 {
                     std::lock_guard<std::mutex> done_being_clustered_guard(Consensus::done_being_clustered_mutex);
                     Consensus::done_being_clustered_clusterings.push(clustering);
+                    if(Consensus::voting_flag) Consensus::done_being_clustered_cluster_to_nodes_map.push(cluster_to_nodes_map);
                 }
             }
         }
 
+        static inline std::map<int, std::vector<int>> GetClusterToNodeMap(std::map<int, int> clustering) {
+            std::map<int, std::vector<int>> cluster_to_nodes_map;
+
+            for(auto const& [node_id, cluster_id] : clustering) {
+                cluster_to_nodes_map[cluster_id].push_back(node_id);
+            }
+            return cluster_to_nodes_map;
+        }
+
         static inline std::map<int, int> GetCommunities(std::string edgelist, std::string algorithm, int seed, double clustering_parameter, igraph_t* graph_ptr) {
+            // TO DO -- add system call to run CM if it is appended to the algorithm i.e. "leiden-cpm-cm"
+            //bool cm_flag = algorithm.compare(algorithm.size()-3, 3, "-cm");
+            //if(cm_flag) algorithm.erase(algorithm.size()-3, algorithm.size());
+
             std::map<int, int> partition_map;
             igraph_t graph;
             if(graph_ptr == nullptr) {
@@ -223,6 +262,10 @@ class Consensus {
             } else {
                 throw std::invalid_argument("GetCommunities(): Unsupported algorithm");
             }
+
+            //if(cm_flag) {
+            //    //system call to CM
+            //}
 
             if(graph_ptr == nullptr) {
                 igraph_destroy(&graph);
@@ -281,10 +324,12 @@ class Consensus {
         std::vector<double> weight_vector;
         std::vector<double> clustering_parameter_vector;
         int num_calls_to_log_write;
+        static inline bool voting_flag = false;
         static inline std::mutex num_partition_index_mutex;
         static inline std::queue<int> num_partition_index_queue;
         static inline std::mutex done_being_clustered_mutex;
         static inline std::queue<std::map<int, int>> done_being_clustered_clusterings;
+        static inline std::queue<std::map<int, std::vector<int>>> done_being_clustered_cluster_to_nodes_map;
 };
 
 #endif

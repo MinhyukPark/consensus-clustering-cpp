@@ -97,6 +97,7 @@ int MultiResolutionConsensus::main() {
     this->WriteToLogFile("Started the final connected components run" , 1);
     std::map<int, int> final_partition = Consensus::GetConnectedComponents(&next_graph);
     this->WriteToLogFile("Finished the final connected components run" , 1);
+    
     igraph_destroy(&graph);
     if(iter_count != 0) {
         igraph_destroy(&next_graph);

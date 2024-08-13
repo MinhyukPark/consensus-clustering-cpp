@@ -39,6 +39,7 @@ else()
         ${CMAKE_SOURCE_DIR}/src/multi_resolution_consensus.cpp
         ${CMAKE_SOURCE_DIR}/src/threshold_consensus.cpp
         ${CMAKE_SOURCE_DIR}/src/simple_ensemble_clustering.cpp
+        ${CMAKE_SOURCE_DIR}/src/ensemble_consensus.cpp
         ${CMAKE_SOURCE_DIR}/src/consensus.cpp)
     #[[ CONSTANTS END ]]
 
