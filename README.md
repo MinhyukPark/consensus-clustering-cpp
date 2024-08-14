@@ -138,3 +138,36 @@ Optional arguments:
   --log-file        Output log file [required]
   --log-level       Log level where 0 = silent, 1 = info, 2 = verbose [default: 1]
 ```
+
+### Ensemble consensus
+Can run be used with a single clustering algorithm (as simple consensus) or multiple algorithms (as multi-resolution consensus). Includes options to use voting, to use the components or a final clustering algorithm for genertaing final clusters, and to enable the use of delta parameter for checking convergence. 
+```
+Usage: ensemble_consensus [--help] [--version] --edgelist VAR [--threshold VAR] --partition-file VAR [--delta VAR] [--max-iter VAR] [--partitions VAR] [--num-processors VAR] --output-file VAR --log-file VAR [--log-level VAR] [--final-algorithm VAR] [--final-resolution VAR] [--voting-flag] [--delta-convergence-flag] [--final-clustering-flag]
+
+Ensemble consensus clustering algorithm
+
+Optional arguments:
+  -h, --help                shows help message and exits 
+  -v, --version             prints version information and exits 
+  --edgelist                Network edge-list file [required]
+  --threshold               Threshold value [default: 1]
+  --partition-file          Clustering partition file where the first column is one of (leiden-cpm, leiden-mod, louvain), second column is its weight, and the third column is the clustering method parameter (resolution value for leiden-cpm, ignored for leiden-mod and louvain. One can put -1 here in these cases). [required]
+  --delta                   Convergence parameter [default: 0.02]
+  --max-iter                Maximum number of iterations in simple consensus [default: 2]
+  --partitions              Number of partitions in consensus clustering [default: 10]
+  --num-processors          Number of processors [default: 1]
+  --output-file             Output clustering file [required]
+  --log-file                Output log file [required]
+  --log-level               Log level where 0 = silent, 1 = info, 2 = verbose [default: 1]
+  --final-algorithm         Final clustering algorithm to be used (leiden-cpm, leiden-mod, louvain) [default: "leiden-cpm"]
+  --final-resolution        Resolution value for the final run. Only used if --final-algorithm is leiden-cpm [default: 0.01]
+  --voting-flag             Y if only edges connecting nodes in non-singleton clusters should be counted when computing the edge weights, meaning singleton clusters effectively cannot vote. 
+  --delta-convergence-flag  Y not recommended if the paritions will be from different clustering algorithms or different resolutions. N means convergnece occurs only when the graph is the same between iterations. 
+  --final-clustering-flag   Y for returning the connected components as the final clustering. N for specifying a final clustering algorithm and its parameter settings.
+
+Simple Consensus Usage: ensemble_consensus [--help] [--version] --edgelist VAR [--threshold VAR] --partition-file VAR --delta VAR [--max-iter VAR] [--partitions VAR] [--num-processors VAR] --output-file VAR --log-file VAR [--log-level VAR] --final-algorithm VAR --final-resolution VAR --delta-convergence-flag --final-clustering-flag
+
+Multi-Resolution Consensus Usage: ensemble_consensus [--help] [--version] --edgelist VAR [--threshold VAR] --partition-file VAR [--max-iter VAR] [--partitions VAR] [--num-processors VAR] --output-file VAR --log-file VAR [--log-level VAR]
+
+```
+
